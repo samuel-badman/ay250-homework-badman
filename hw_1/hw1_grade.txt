@@ -1,0 +1,58 @@
+Your score: 23/24
+
+Breakdown & Comments: 
+
+----------------------------------------
+Coding Style: 4/4
+----------------------------------------
+1/1: git repo style
+1/1: code style
+1/1: notebook style
+1/1: code portability
+
+Thank you for using markdown cells to log your answers!
+But in the future, please bold the "Conclusion" word or
+something to make it really easy to find.
+
+Have a *little* more care to always label plot axes 
+(and title colorbars; even if it means editing code that 
+was given to you by the prof).
+
+----------------------------------------
+Problem 1: 6/6 
+----------------------------------------
+3/3: good attempt of each part
+3/3: successful execution of each part
+
+----------------------------------------
+Problem 2: 7/7
+----------------------------------------
+2/2: good attempt of parts 2 and 5
+5/5: successful completion of parts 1-5
+
+----------------------------------------
+Problem 3: 1/2 
+----------------------------------------
+1/2: successful completion of year/lunar estimates
+
+use np.argmax()
+
+your answer does not show me an understanding of the periodogram analysis;
+do you even know what kind of periodogram you're using when you do scipy.signal.periodogram?
+this is why comments are helpful.
+
+
+----------------------------------------
+Problem 4: 5/5 
+----------------------------------------
+1/1: understanding what is going on in the plot for part 1
+1/1: good attempt of part 1
+3/3: successful completion of parts 1-3
+
+I think poll_track_sim hard-coded in the "1000-person" sample size... 
+(your else statement) but then your results seem ok... 
+
+fyi your code would be much simpler with panda's binomial() and rolling()
+functions!
+
+Graded by C. E. Harris
