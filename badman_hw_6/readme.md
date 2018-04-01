@@ -13,3 +13,14 @@ I have checked this homework in as a jupyter notebook. It is structured as :
 * Instantiation of classifier using 100% of the training data, and a function to
 call and predict the features for a validation dataset with the pathname 
 provided at the top of the notebook, assuming .jpg files only .
+
+I have also checked in a joblib dump of the features and classifications of the training set (~3MB),
+and the notebook is configured so that when you run it all, it loads the features from this dump 
+instead of re-extracting all the features. This means you can enter the validation file pathname at the
+top of the notebook, and then run all cells and the notebook will proceed to train the classifier,
+re-run the evaluation cells, and then do the validation, all in less than a minute of run time.
+
+To make the feature rextraction run again, in line [18], change reprocess = False to reprocess = True
+The feature extraction runs in parallel using mp.Pool, and on my computer takes around 3 minutes to run.
+To ensure this works, you need to have the 50_categories/ image directory located in the current working
+directory of the notebook.
