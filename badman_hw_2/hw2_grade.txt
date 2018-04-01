@@ -1,0 +1,30 @@
+Your score: 17/17
+
+Breakdown & Comments: 
+
+----------------------------------------
+Problem 1: 5/5
+----------------------------------------
+1/1: plot with caption
+4/4: analysis
+
+Really good analysis.
+
+----------------------------------------
+Problem 2: 7/7
+----------------------------------------
+3/3: Recreated plot
+3/3: New dynamic interactions
+1/1: Analysis of changes
+
+----------------------------------------
+Problem 3: 5/5
+----------------------------------------
+5/5: Reproduced plot: title, twin_x, legend, limits, linestyles
+
+I guess you defined the rc params because you wanted to make sure 
+the figure showed up the same for me as it did for you, which 
+was good caution for the problem. Have you seem that you can do
+"style" files with matplotlib now? 
+
+Graded by C. E. Harris
