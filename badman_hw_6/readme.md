@@ -22,3 +22,5 @@ re-run the evaluation cells, and then do the validation, all in less than a minu
 
 To make the feature rextraction run again, in line [18], change reprocess = False to reprocess = True
 The feature extraction runs in parallel using mp.Pool, and on my computer takes around 3 minutes to run.
+To ensure this works, you need to have the 50_categories/ image directory located in the current working
+directory of the notebook.
