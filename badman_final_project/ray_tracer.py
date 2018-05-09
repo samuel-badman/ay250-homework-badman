@@ -4,6 +4,7 @@ from math import pi,sin,cos,tan
 from multiprocessing import Pool,cpu_count
 from functools import partial
 from sys import stdout
+import pandas as pd
 
 #_______________________________________________________________________________
 def get_shape() :
@@ -235,12 +236,13 @@ def ray_coords(az, el, yp, zp, Ny, Nz, rc) :
     rp_refl = []
 
     # Loop over plane, populate lists
-    for ii in range(Ny+1) :
-        ny = ii - Ny/2
-        for jj in range(Nz+1) :
-            nz = jj - Nz/2
-            rp.append(rc*xhat + ny*yp/Ny * yhat + nz*zp/Nz * zhat)
-            rp_refl.append(-rc*xhat + ny*yp/Ny * yhat + nz*zp/Nz * zhat) 
+    ystep,zstep = yp/(Ny),zp/(Nz)
+    for ii in np.arange(Ny) :
+        ny = ii - Ny/2 + 0.5
+        for jj in np.arange(Nz) :
+            nz = jj - Nz/2 + 0.5
+            rp.append(rc*xhat + ny*ystep * yhat + nz*zstep * zhat)
+            rp_refl.append(-rc*xhat + ny*ystep * yhat + nz*zstep * zhat) 
     rp = np.array(rp)
     rp_refl = np.array(rp_refl)
 
@@ -418,11 +420,13 @@ def compute_drag(az=30.,el=45.,Ny=20,Nz=20,yp=3.0,zp=3.0,rc=3.0,viz=False) :
     Returns
     -------
     force : [3x1] float
-        [N,N,N] : Total drag force for inputted flow direction
+        Units Newton/kg/m/s2 : Total drag force for inputted flow direction 
+                               with rho v^2 divided out.
     
     torque : [3x1] float
-        [Nm,Nm,Nm] : Total drag torque for inputted flow direction
-    
+        Units Newton/kg/s2 : Total drag torque for inputted flow direction
+                             with rho v^2 divided out.
+                             
     hits : [n_intersections x 3] float (returned if viz == True)
         [U=10cm] : coordinates of intersections
     
@@ -454,17 +458,8 @@ def compute_drag(az=30.,el=45.,Ny=20,Nz=20,yp=3.0,zp=3.0,rc=3.0,viz=False) :
     -----
     05/07/18 - Sam Badman - First commit
     '''
-    
-    # Ray indices to loop over
-    rays = range((Ny+1)*(Nz+1))
-    
-    # Lists to store for outputting
-    hits = []
-    sources = []
-    faces = []
-    
-    # Drag force per array
-    drag_mult = 1.0
+    # Get shape
+    tri_arr = get_shape()
     
     # Get ray origin coordinates
     rp,rp_refl = ray_coords(az=az,el=el,yp=yp,zp=zp,Ny=Ny,Nz=Nz,rc=rc)
@@ -473,6 +468,18 @@ def compute_drag(az=30.,el=45.,Ny=20,Nz=20,yp=3.0,zp=3.0,rc=3.0,viz=False) :
     ray_norm = rp_refl[0]-rp[0]
     ray_norm = ray_norm/norm(ray_norm)
     
+    # Produce array of normal vectors. If not facing into ray direction, flip
+    # sign
+    n_arr = []
+    for tri in tri_arr :
+        n = np.cross(tri[1]-tri[0],tri[2]-tri[0])
+        n /= norm(n)
+        if np.dot(ray_norm,n) <= 0  : n_arr.append(n)
+        else : n_arr.append(-n)    
+    
+    # Ray indices to loop over
+    rays = np.arange(Ny*Nz)
+    
     # Initialize Pool to compute ray intersections in parallel
     ray_tracer = Pool(cpu_count())
     results = ray_tracer.map(partial(compute_intersections,az=az,el=el,Ny=Ny,
@@ -480,35 +487,49 @@ def compute_drag(az=30.,el=45.,Ny=20,Nz=20,yp=3.0,zp=3.0,rc=3.0,viz=False) :
     ray_tracer.close()
     
     # Pull out rays which did intersect
+    faces = []
+    hits = []
+    sources = []
     for result in results :
         if result[0] != '' : 
             faces.append(result[0])
             hits.append(result[1])
             sources.append(result[2])        
-    hits = np.array(hits)
-    sources = np.array(sources)
+
+    # Calculate force element per unit density and velocity^2 for each hit.
+    # Total plane y dim: (m)
+    dA = yp*0.1*zp*0.1/Ny/Nz # Area per ray
+    dF = []
+    hh = 0
+    r = ray_norm
+    sigma_n = 0.8
+    sigma_t = 0.8
+    for hit in hits :
+        n = n_arr[faces[hh]]
+        dF.append(np.dot(r,n)*dA*((2-sigma_n)*n + sigma_t*(np.dot(r,n)*n - r)))
+        hh += 1
     
     # Sum individual force elements to produce total drag force vector
-    force = drag_mult*ray_norm*hits.shape[0]
+    F = np.sum(dF,axis=0)
     
     # Take cross product of each force element with intersection location
     # to get torque elements. 
-    diff_torques = np.cross(hits,drag_mult*ray_norm)
+    diff_torques = np.cross(np.array(hits),np.array(dF))
     
     # Sum torque elements to get total torque
     torque = np.sum(diff_torques,axis=0)
     torque[abs(torque) < 1e-12] = 0.0
     
-    if viz == True : return force,torque,hits,sources,faces
-    else : return force, torque
+    if viz == True : return F,torque,np.array(hits),np.array(sources),faces,n_arr
+    else : return F, torque
 #_______________________________________________________________________________
 def tabulate_drag(Naz,Nel,Ny=20,Nz=20,yp=15.,zp=15.,rc=9.) :
     ''' Compute drag force and torque for flow dirs from around the unit sphere.
     
     Iterate over different azimuth and elevation angles, and for each flow
     direction, calculate the drag force and drag torque. Return the results
-    tabulated in a 2x2 array,with a corresponding array containing the az,el
-    angles.
+    as a pandas dataframe indexed by azimuth angle (column) and elevation angle
+    (row).
     
     Arguments
     ---------
@@ -537,8 +558,10 @@ def tabulate_drag(Naz,Nel,Ny=20,Nz=20,yp=15.,zp=15.,rc=9.) :
     
     Returns
     -------
-    drag_table : [Naz x Nel] nested list, each list el is a tuple
-        ([N,N,N],[Nm,Nm,Nm]) : table of tuples of force and torque
+    df : pandas dataframe
+        columns : azimuthal angles
+        rows : elevation angles
+        table values : (F,tau) F = drag force vec [N] , tau = torque vec [Nm]
         
     angles_table : [Naz x Nel] nested list, each list el is a tuple
         (deg,deg) : each tuple contains azimuth and elevation angle
@@ -556,26 +579,23 @@ def tabulate_drag(Naz,Nel,Ny=20,Nz=20,yp=15.,zp=15.,rc=9.) :
     -----
     05/07/18 - Sam Badman - First commit
     '''
-    # Initialize output lists
-    drag_table = []
-    angles_table = []
+    
+    column_names = np.arange(0,360+360/Naz,360/Naz)
+    row_names = np.arange(-90,90+180/Nel,180/Nel)
+    df = pd.DataFrame(index=row_names,columns=column_names)
+
     print("Calculating drag force and torque for :")
     # Loop over azimuth angles from 0-360 deg
     for az in np.arange(0,360+360/Naz,360/Naz) :
-        temp = []
-        temp2 = []
         # Loop over elevation angles from -90 to +90 deg
         for el in np.arange(-90,90+180/Nel,180/Nel) :
             stdout.write("\rAzimuth :"+str(az)+" deg, Elevation :"
                          +str(el)+" deg")
             # Compute force and torque for the given flow orientation
             f,t = compute_drag(az=az,el=el,Ny=Ny,Nz=Nz,yp=yp,zp=zp,rc=rc)
-            temp.append((f,t))
-            temp2.append((az,el))
-        drag_table.append(temp)
-        angles_table.append(temp2)
-        
-    return drag_table,angles_table
+            df[az][el] = (f,t)
+            
+    return df
          
 
 
