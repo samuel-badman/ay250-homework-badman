@@ -6,6 +6,7 @@ __Simulating the Drag Force and Torque using ray tracing__
 
 The functions which contain the computation of the project are located in 
 > ray_tracer.py
+
 Each function is documented with a PEP257 compliant docstring
 
 The explanation and visualization of the project are given in 
